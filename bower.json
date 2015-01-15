@@ -1,0 +1,7 @@
+{
+	"name": "classyjs-injector",
+	"version": "0.1.0",
+	"dependencies": {
+		"classyjs": "git://github.com/peteonline/ClassyJS.git#*"
+	}
+}

@@ -1,0 +1,17 @@
+{
+	
+	"devDependencies": {
+		"gulp": "*",
+		"gulp-concat": "*",
+		"gulp-watch": "*",
+		"gulp-uglify": "*",
+		"gulp-gzip": "*",
+		"gulp-rename": "*",
+		"gulp-bump": "*",
+		"yargs": "*",
+		"gulp-karma": "*",
+		"karma-jasmine": "*",
+		"karma-phantomjs-launcher": "*"
+	}
+	
+}
