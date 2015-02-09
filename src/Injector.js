@@ -1,18 +1,53 @@
 define(
 
-'class Injector',
+'class Classy.Injector',
 {
 	
 	/**
-	 * @var {[object]}
+	 * @var {object}
 	 * 
 	 * Objects registered as singletons
 	 * 
 	 * Contains all objects which represent
 	 * the single instance that should be
-	 * returned for their respective classes
+	 * returned for their respective classes,
+	 * indexed against their class name.
+	 * 
+	 * If the singleton has been instantiated
+	 * the object itself is held, whereas
+	 * if the singleton is yet to be created,
+	 * null is used in its place.
 	 */
-	'private singletons ([object])': [],
+	'protected singletons (object)': {},
+	
+	/**
+	 * @var {object}
+	 * 
+	 * Objects registered as interface implementations
+	 * 
+	 * Contains all objects which should
+	 * used when an interface is resolved.
+	 * 
+	 * If the implementation has been
+	 * instantiated the object itself
+	 * is held, whereas if it is yet to
+	 * be created, the related class name
+	 * is used in its place.
+	 */
+	'protected interfaces (object)': {},
+	
+	/**
+	 * Constructor
+	 * 
+	 * Constructs the class - simply by
+	 * ensuring that this instance is used
+	 * as a singleton when an injector
+	 * is resolved
+	 */
+	'public construct () -> undefined': function()
+	{
+		this.registerSingleton(this);
+	},
 	
 	/**
 	 * Instantiates a class
@@ -29,37 +64,40 @@ define(
 	 */
 	'public resolve (string) -> object': function(className)
 	{
-		
-		// If there is a singleton class
-		// registered for the provided
-		// class name, return that instance
-		if (this.hasSingleton(className)) return this.getSingleton(className);
-		
-		// Get the class constructor function
-		// for the given class name
-		var classConstructor = this.getClassFromClassName(className);
-		
-		// Get a list of dependencies
-		// for this class as strings
-		var dependencyTypes = this.getDependencyTypesFromClass(className);
-		
-		// Get the actual dependency objects
-		var dependencies = this.getDependenciesFromDependencyTypes(dependencyTypes);
-		
-		// Throw in an 'undefined' at the
-		// start of the array. This is so
-		// that the bind method below
-		// passes undefined as 'this' to
-		// the class constructor.
-		dependencies.unshift(undefined);
-		
-		// Finally, create a new object with
-		// its dependencies and return it
-		return new (classConstructor.bind.apply(classConstructor, dependencies))();
-		
+		return this.doResolve(className);
 	},
 	
-	'public registerSingleton (object) -> undefined': function(object)
+	/**
+	 * Calls a class method
+	 * 
+	 * Given a class instance and a method
+	 * name, the method is called and any of
+	 * its dependencies will be created and
+	 * provided. Any dependencies which in
+	 * turn have dependencies will also be
+	 * resolved in this manner.
+	 * 
+	 * @param  {object} instance  The class instance to call
+	 * @param  {string} className The method to call
+	 * @return {object}           The return value of the method
+	 */
+	'public resolve (object, string) -> mixed': function(object, methodName)
+	{
+		// @todo Check object has method
+		return this.doResolve(methodName, object);
+	},
+	
+	/**
+	 * Registers a class instance as a singleton
+	 * 
+	 * The provided instance will then be
+	 * returned whenever its class is resolved
+	 * either directly or as a dependency
+	 * 
+	 * @param  {object} object   The singleton instance
+	 * @return {Classy.Injector} Self for chaining
+	 */
+	'public registerSingleton (object) -> Classy.Injector': function(object)
 	{
 		
 		// Get the class name of the provided
@@ -75,10 +113,168 @@ define(
 		
 		// Push the object into the
 		// array of singletons
-		this.singletons('push', {
-			className: match[1],
-			object: object
-		});
+		this.singletons()[match[1]] = object;
+		
+		// Allow chaining
+		return this;
+		
+	},
+	
+	/**
+	 * Registers a class name as a singleton
+	 * 
+	 * The provided class name will be stored
+	 * and when a class of its type is
+	 * instantiated, that instance will be
+	 * used as a singleton from then on.
+	 * 
+	 * @param  {string} className The singleton class name
+	 * @return {Classy.Injector}  Self for chaining
+	 */
+	'public registerSingleton (string) -> Classy.Injector': function(className)
+	{
+		
+		// @todo Check class exists
+		// @todo Check singleton object doesn't already exist
+		// @todo Check class name isn't already in the list
+		
+		// Save the class name as the object
+		// index and null to indicate we do
+		// not yet have an instance
+		this.singletons()[className] = null;
+		
+		// Allow chaining
+		return this;
+		
+	},
+	
+	/**
+	 * Registers a class instance as an interface implementation
+	 * 
+	 * The provided instance will then be
+	 * returned whenever the nominated interface
+	 * type is resolved either directly
+	 * or as a dependency
+	 * 
+	 * @param  {string} interfaceName The interface name
+	 * @param  {object} instance      The implementation instance
+	 * @return {Classy.Injector}      Self for chaining
+	 */
+	'public registerInterface (string, object) -> Classy.Injector': function(interfaceName, instance)
+	{
+		
+		// @todo Check instance implements interface
+		// @todo Don't overwrite previous interface
+		
+		// Save the instance against the class name
+		this.interfaces()[interfaceName] = instance;
+		
+		// Allow chaining
+		return this;
+		
+	},
+	
+	/**
+	 * Registers a class name as an interface implementation
+	 * 
+	 * The provided class name will be stored
+	 * and when a class of its type is
+	 * instantiated, that instance will be
+	 * used as an interface implementation
+	 * from then on.
+	 * 
+	 * @param  {string} interfaceName The interface name
+	 * @param  {string} className     The implementation class name
+	 * @return {Classy.Injector}      Self for chaining
+	 */
+	'public registerInterface (string, string) -> Classy.Injector': function(interfaceName, className)
+	{
+		
+		// @todo Check instance implements interface
+		// @todo Don't overwrite previous interface
+		
+		// Save the class name against the interface
+		this.interfaces()[interfaceName] = className;
+		
+		// Allow chaining
+		return this;
+		
+	},
+	
+	'protected doResolve (string, object?) -> mixed': function(classInterfaceOrMethodName, object)
+	{
+		
+		// Work out the class name and method name
+		// based on whether an object was provided
+		if (object === null) {
+			var className = classInterfaceOrMethodName;
+			var methodName = 'construct';
+		} else {
+			// @todo When the Reflection API allows,
+			// we should use that instead of parsing
+			var className = object.toString().match(/\[object ([A-Za-z0-9.]+)\]/)[1];
+			var methodName = classInterfaceOrMethodName;
+		}
+		
+		// If there is a singleton class
+		// registered for the provided
+		// class name, return that instance
+		if (object === null && this.hasSingleton(className)) return this.getSingleton(className);
+		
+		// If there is an interface implementation
+		// registered for the given class name...
+		if (object === null && this.interfaces()[className]) {
+			object = this.interfaces()[className];
+			
+			// If the implementation is a string, it
+			// is the class name. We can resolve one
+			// now and save the instance for future use
+			if (typeof object == 'string') {
+				object = this.doResolve(object);
+				this.interfaces()[className] = object;
+			}
+			
+			// Return the implementation
+			return object;
+			
+		}
+		
+		// Get the method we are going to
+		// resolve. This is either the
+		// constructor or a specified method
+		var method = (object === null)
+			? this.getClassFromClassName(className)
+			: object[methodName];
+		
+		// Get a list of dependencies
+		// for this method as strings
+		var dependencyTypes = this.getDependencyTypesFromClass(className, methodName);
+		
+		// Get the actual dependency objects
+		var dependencies = this.getDependenciesFromDependencyTypes(dependencyTypes);
+		
+		// If we are calling a method, do
+		// it now providing dependencies
+		// and return its return value
+		if (object !== null) return method.apply(object, dependencies);
+		
+		// If we are building a new object,
+		// throw in an 'undefined' at the
+		// start of the array. This is so
+		// that the bind method below
+		// passes undefined as 'this' to
+		// the class constructor.
+		dependencies.unshift(undefined);
+		
+		// Create the new object
+		var object = new (method.bind.apply(method, dependencies))();
+		
+		// If this class should be a
+		// singleton in future, save it now
+		if (this.singletons()[className] === null) this.registerSingleton(object);
+		
+		// Return the new object
+		return object;
 		
 	},
 	
@@ -108,7 +304,7 @@ define(
 		
 	},
 	
-	'private getDependencyTypesFromClass (string) -> array': function(className)
+	'private getDependencyTypesFromClass (string, string) -> array': function(className, methodName)
 	{
 		
 		// Get a list of the methods of the
@@ -116,18 +312,18 @@ define(
 		var reflectionMethods = (new Reflection.Class(className)).getMethods();
 		
 		// Loop through all the methods saving
-		// the ones which are constructors
+		// the ones which match the given name
 		var constructorMethods = [];
 		for (var i in reflectionMethods) {
-			if (reflectionMethods[i].getName() == 'construct') {
+			if (reflectionMethods[i].getName() == methodName) {
 				constructorMethods.push(reflectionMethods[i]);
 			}
 		}
 		
-		// Loop through the constructor methods
-		// and get a list of argument types,
-		// as strings, for the method with
-		// the lowest number of arguments
+		// Loop through the methods and get
+		// a list of argument types, as
+		// strings, for the method with the
+		// lowest number of arguments
 		var argumentTypes;
 		for (var i in constructorMethods) {
 			var methodArgumentTypes = constructorMethods[i].getArguments();
@@ -142,7 +338,7 @@ define(
 		
 		// Return the list of arguments,
 		// or an empty array if no
-		// constructor exists
+		// method exists
 		return argumentTypes || [];
 		
 	},
@@ -152,11 +348,11 @@ define(
 		
 		// Loop through each of the dependency
 		// strings and build the relevant
-		// object via our own resolve method
+		// object via our own doResolve method
 		var dependencies = [];
 		for (var i in dependencyTypes) {
 			if (!dependencyTypes.hasOwnProperty(i)) continue;
-			dependencies.push(this.resolve(dependencyTypes[i]));
+			dependencies.push(this.doResolve(dependencyTypes[i]));
 		}
 		return dependencies;
 		
@@ -165,28 +361,21 @@ define(
 	'private hasSingleton (string) -> boolean': function(className)
 	{
 		
-		// Loop through our array of
-		// singletons, returning true if we
-		// find a match or false if we do not
+		
+		// Return true if there is an index
+		// for the provided class name in our
+		// singletons array, false otherwise
 		var singletons = this.singletons();
-		for (var i in singletons) {
-			if (singletons[i].className == className) return true;
-			
-		}
-		return false;
+		return typeof singletons[className] != 'undefined' && singletons[className] !== null;
 		
 	},
 	
 	'private getSingleton (string) -> object': function(className)
 	{
 		
-		// Loop through the array of
-		// singletons, returning the object
-		// which matches the given class name
-		var singletons = this.singletons();
-		for (var i in singletons) {
-			if (singletons[i].className == className) return singletons[i].object;
-		}
+		// Return the singleton object
+		// indexed by the given class name
+		return this.singletons()[className];
 		
 	}
 	

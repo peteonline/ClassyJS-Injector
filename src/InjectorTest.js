@@ -1,4 +1,4 @@
-describe('Injector', function(){
+describe('Classy.Injector', function(){
 	
 	/**
 	 * @todo...
@@ -7,20 +7,16 @@ describe('Injector', function(){
 	 * Pass in nested dependency
 	 * Check singleton is also used for dependencies
 	 * Ensure singleton cannot be replaced
-	 * Allow interface implementation to be registered and used when interface is resolved
 	 * Ensure interface implementation is used as dependency
 	 * Ensure interface implementation is actually of that interface
-	 * Allow object method to be called through injector and its dependencies be resolved
-	 * Ensures object method downstream dependencies are injected
-	 * All the same again with object method...
-	 * Ensure injector uses itself as a singleton
+	 * Allow a callback to run before instantiating a certain class
 	 */
 	
 	var injector;
 	
 	beforeEach(function(){
 		delete window.ToolsTest;
-		injector = new Injector();
+		injector = new Classy.Injector();
 		define('class ToolsTest.SimpleClass', {});
 		define('class ToolsTest.SingleDependency', {
 			'public simpleObject (ToolsTest.SimpleClass)': null,
@@ -40,11 +36,25 @@ describe('Injector', function(){
 				this.object(object);
 			}
 		});
+		define('class ToolsTest.MethodDependency', {
+			'public simpleObject (ToolsTest.SimpleClass)': null,
+			'public myMethod (ToolsTest.SimpleClass) -> undefined': function(simpleObject){
+				this.simpleObject(simpleObject);
+			}
+		});
+		define('class ToolsTest.NestedMethodDependency', {
+			'public object (ToolsTest.MultipleDependencies)': null,
+			'public myMethod (ToolsTest.MultipleDependencies) -> undefined': function(object){
+				this.object(object);
+			}
+		});
+		define('interface ToolsTest.IMyInterface');
+		define('class ToolsTest.InterfaceImplementation implements ToolsTest.IMyInterface');
 	});
 	
 	it('can be instanciated', function(){
-		var injector = new Injector();
-		expect(injector instanceof Injector).toBe(true);
+		var injector = new Classy.Injector();
+		expect(injector instanceof Classy.Injector).toBe(true);
 	});
 	
 	it('can resolve object', function(){
@@ -73,6 +83,20 @@ describe('Injector', function(){
 		expect(myObject.object().arguments()[1] instanceof ToolsTest.SimpleClass).toBe(true);
 	});
 	
+	it('can resolve a class method', function(){
+		var myObject = new ToolsTest.MethodDependency();
+		injector.resolve(myObject, 'myMethod');
+		expect(myObject.simpleObject() instanceof ToolsTest.SimpleClass).toBe(true);
+	});
+	
+	it('can resolve a class method with nested dependencies', function(){
+		var myObject = new ToolsTest.NestedMethodDependency();
+		injector.resolve(myObject, 'myMethod');
+		expect(myObject.object() instanceof ToolsTest.MultipleDependencies).toBe(true);
+		expect(myObject.object().arguments()[0] instanceof ToolsTest.SimpleClass).toBe(true);
+		expect(myObject.object().arguments()[1] instanceof ToolsTest.SimpleClass).toBe(true);
+	});
+	
 	it('allows singleton to be registered and it is used in future resolves', function(){
 		var simpleObject = new ToolsTest.SimpleClass();
 		injector.registerSingleton(simpleObject);
@@ -84,6 +108,32 @@ describe('Injector', function(){
 		injector.registerSingleton(simpleObject);
 		var myObject = injector.resolve('ToolsTest.SingleDependency');
 		expect(myObject.simpleObject()).toBe(simpleObject);
+	});
+	
+	it('allows singleton class name to be registered and first instantiated is used', function(){
+		injector.registerSingleton('ToolsTest.SimpleClass');
+		expect(
+			injector.resolve('ToolsTest.SimpleClass')
+		).toBe(
+			injector.resolve('ToolsTest.SimpleClass')
+		);
+	});
+	
+	it('uses itself as a singleton', function(){
+		expect(injector.resolve('Classy.Injector')).toBe(injector);
+	});
+	
+	it('allows an interface implementation to be registered and resolved', function(){
+		var implementation = new ToolsTest.InterfaceImplementation();
+		injector.registerInterface('ToolsTest.IMyInterface', implementation);
+		expect(injector.resolve('ToolsTest.IMyInterface')).toBe(implementation);
+	});
+	
+	it('allows an interface to be registered against an uninstantiated class name', function(){
+		injector.registerInterface('ToolsTest.IMyInterface', 'ToolsTest.InterfaceImplementation');
+		expect(
+			injector.resolve('ToolsTest.IMyInterface') instanceof ToolsTest.InterfaceImplementation
+		).toBe(true);
 	});
 	
 });
