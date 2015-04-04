@@ -8,7 +8,6 @@ describe('Classy.Injector', function(){
 	 * Check singleton is also used for dependencies
 	 * Ensure singleton cannot be replaced
 	 * Ensure interface implementation is used as dependency
-	 * Ensure interface implementation is actually of that interface
 	 * Allow a callback to run before instantiating a certain class
 	 */
 	
@@ -123,17 +122,21 @@ describe('Classy.Injector', function(){
 		expect(injector.resolve('Classy.Injector')).toBe(injector);
 	});
 	
-	it('allows an interface implementation to be registered and resolved', function(){
-		var implementation = new ToolsTest.InterfaceImplementation();
-		injector.registerInterface('ToolsTest.IMyInterface', implementation);
-		expect(injector.resolve('ToolsTest.IMyInterface')).toBe(implementation);
+	it('allows an interface implementation class to be registered and resolved', function(){
+		injector.registerInterface('ToolsTest.IMyInterface', 'ToolsTest.InterfaceImplementation');
+		expect(injector.resolve('ToolsTest.IMyInterface') instanceof ToolsTest.InterfaceImplementation).toBe(true);
 	});
 	
-	it('allows an interface to be registered against an uninstantiated class name', function(){
+	it('allows multiple interface implementations to be resolved', function(){
 		injector.registerInterface('ToolsTest.IMyInterface', 'ToolsTest.InterfaceImplementation');
-		expect(
-			injector.resolve('ToolsTest.IMyInterface') instanceof ToolsTest.InterfaceImplementation
-		).toBe(true);
+		expect(injector.resolve('ToolsTest.IMyInterface')).not.toBe(injector.resolve('ToolsTest.IMyInterface'));
+	});
+	
+	it('allows an interface implementation to be registered as a singleton', function(){
+		injector.registerInterface('ToolsTest.IMyInterface', 'ToolsTest.InterfaceImplementation');
+		var instance = injector.resolve('ToolsTest.IMyInterface');
+		injector.registerSingleton(instance);
+		expect(injector.resolve('ToolsTest.IMyInterface')).toBe(instance);
 	});
 	
 });

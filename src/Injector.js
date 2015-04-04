@@ -25,7 +25,7 @@ define(
 	 * 
 	 * Objects registered as interface implementations
 	 * 
-	 * Contains all objects which should
+	 * Contains all objects which should be
 	 * used when an interface is resolved.
 	 * 
 	 * If the implementation has been
@@ -149,39 +149,12 @@ define(
 	},
 	
 	/**
-	 * Registers a class instance as an interface implementation
-	 * 
-	 * The provided instance will then be
-	 * returned whenever the nominated interface
-	 * type is resolved either directly
-	 * or as a dependency
-	 * 
-	 * @param  {string} interfaceName The interface name
-	 * @param  {object} instance      The implementation instance
-	 * @return {Classy.Injector}      Self for chaining
-	 */
-	'public registerInterface (string, object) -> Classy.Injector': function(interfaceName, instance)
-	{
-		
-		// @todo Check instance implements interface
-		// @todo Don't overwrite previous interface
-		
-		// Save the instance against the class name
-		this.interfaces()[interfaceName] = instance;
-		
-		// Allow chaining
-		return this;
-		
-	},
-	
-	/**
 	 * Registers a class name as an interface implementation
 	 * 
 	 * The provided class name will be stored
 	 * and when a class of its type is
 	 * instantiated, that instance will be
-	 * used as an interface implementation
-	 * from then on.
+	 * used as an interface implementation.
 	 * 
 	 * @param  {string} interfaceName The interface name
 	 * @param  {string} className     The implementation class name
@@ -222,21 +195,10 @@ define(
 		if (object === null && this.hasSingleton(className)) return this.getSingleton(className);
 		
 		// If there is an interface implementation
-		// registered for the given class name...
+		// registered for the given class name, return
+		// an instance of that class
 		if (object === null && this.interfaces()[className]) {
-			object = this.interfaces()[className];
-			
-			// If the implementation is a string, it
-			// is the class name. We can resolve one
-			// now and save the instance for future use
-			if (typeof object == 'string') {
-				object = this.doResolve(object);
-				this.interfaces()[className] = object;
-			}
-			
-			// Return the implementation
-			return object;
-			
+			return this.doResolve(this.interfaces()[className]);
 		}
 		
 		// Get the method we are going to
